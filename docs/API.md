@@ -73,6 +73,18 @@ the supported runtime-updating element.
 
 ## Reactive state
 
+`Slideshow` displays a list of local PNG/JPEG files in a loop. It packages the
+images as SceneGraph `Poster` nodes and uses a repeating `Timer`; the timer runs
+only while its route is active. The last image wraps back to the first.
+
+```java
+new Slideshow(List.of(Path.of("assets/ad-01.png"), Path.of("assets/ad-02.png")),
+        320, 185, 1280, 720, 5); // five seconds per image
+```
+
+The [Roku Timer reference](https://developer.roku.com/dev/docs/timer) defines
+the `duration`, `repeat`, `control`, and observed `fire` fields used here.
+
 `RokuCounter(label, initialValue)` binds a displayed number to a runtime
 BrightScript value. `RokuButton.increment(label)` changes it and immediately
 updates the SceneGraph label. This proves the event → state → view path on Roku;

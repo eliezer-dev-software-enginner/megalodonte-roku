@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -77,7 +78,7 @@ public final class RokuExporter {
         }
         Map<String, byte[]> files = new LinkedHashMap<>();
         Map<RokuImage, String> imageUris = new LinkedHashMap<>();
-        for (RokuScene page : pages) for (RokuImage image : page.images()) {
+        for (RokuScene page : pages) for (RokuImage image : allImages(page)) {
             if (imageUris.containsKey(image)) continue;
             byte[] bytes = Files.readAllBytes(image.source());
             String extension;
@@ -129,6 +130,14 @@ public final class RokuExporter {
                 .replace("\"", "&quot;").replace("'", "&apos;");
     }
 
+    private static List<RokuImage> allImages(RokuScene page) {
+        List<RokuImage> images = new ArrayList<>(page.images());
+        if (page.slideshow() != null) for (Path source : page.slideshow().sources())
+            images.add(new RokuImage(source, page.slideshow().x(), page.slideshow().y(),
+                    page.slideshow().width(), page.slideshow().height()));
+        return images;
+    }
+
     private static String sceneXml(List<RokuScene> pages, Map<RokuImage, String> imageUris, Theme theme) {
         StringBuilder result = new StringBuilder("""
                 <?xml version="1.0" encoding="utf-8"?>
@@ -146,20 +155,38 @@ public final class RokuExporter {
                     .append(xml(imageUris.get(image))).append("\" translation=\"[")
                     .append(image.x()).append(',').append(image.y()).append("]\" width=\"")
                     .append(image.width()).append("\" height=\"").append(image.height()).append("\" />\n");
+            if (page.slideshow() != null) {
+                int slideIndex = 0;
+                for (Path source : page.slideshow().sources()) {
+                    RokuImage slide = new RokuImage(source, page.slideshow().x(), page.slideshow().y(),
+                            page.slideshow().width(), page.slideshow().height());
+                    result.append("      <Poster id=\"slide_").append(pageIndex).append('_').append(slideIndex)
+                            .append("\" uri=\"").append(xml(imageUris.get(slide))).append("\" translation=\"[")
+                            .append(slide.x()).append(',').append(slide.y()).append("]\" width=\"")
+                            .append(slide.width()).append("\" height=\"").append(slide.height())
+                            .append("\" visible=\"").append(slideIndex == 0).append("\" />\n");
+                    slideIndex++;
+                }
+                result.append("      <Timer id=\"slideshow_timer_").append(pageIndex)
+                        .append("\" repeat=\"true\" duration=\"")
+                        .append(page.slideshow().intervalSeconds()).append("\" />\n");
+            }
             for (RokuText text : page.texts()) result.append("      <Label text=\"")
                     .append(xml(text.value())).append("\" translation=\"[")
                     .append(text.x()).append(',').append(text.y()).append("]\" width=\"")
                     .append(text.width()).append("\" height=\"").append(text.height())
                     .append("\" color=\"").append(theme.text()).append("\" />\n");
+            int headingY = page.slideshow() == null ? 230 : 55;
+            int messageY = page.slideshow() == null ? 370 : 125;
             result.append("      <Label text=\"").append(xml(page.heading()))
-                    .append("\" translation=\"[180, 230]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"").append(theme.heading()).append("\" />\n")
+                    .append("\" translation=\"[180, ").append(headingY).append("]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"").append(theme.heading()).append("\" />\n")
                     .append("      <Label text=\"").append(xml(page.message()))
-                    .append("\" translation=\"[180, 370]\" width=\"1560\" height=\"150\" horizAlign=\"center\" color=\"").append(theme.text()).append("\" />\n");
+                    .append("\" translation=\"[180, ").append(messageY).append("]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"").append(theme.text()).append("\" />\n");
             if (page.counter() != null) result.append("      <Label id=\"counter_").append(pageIndex)
                     .append("\" text=\"").append(xml(page.counter().label())).append(": ")
                     .append(page.counter().initialValue())
                     .append("\" translation=\"[180, 520]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"").append(theme.text()).append("\" />\n");
-            int top = page.counter() == null ? 570 : 650;
+            int top = page.slideshow() != null ? 925 : page.counter() == null ? 570 : 650;
             for (int buttonIndex = 0; buttonIndex < page.buttons().size(); buttonIndex++) {
                 result.append("      <Rectangle id=\"button_bg_").append(pageIndex).append('_').append(buttonIndex)
                         .append("\" translation=\"[610, ").append(top + buttonIndex * 85)
@@ -182,6 +209,10 @@ public final class RokuExporter {
                     m.counterLabels = []
                     m.counterNames = []
                     m.counterValues = []
+                    m.slideTimers = []
+                    m.slides = []
+                    m.slideIndexes = []
+                    m.pageIndex = -1
                     m.history = []
                 """);
         for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
@@ -206,18 +237,44 @@ public final class RokuExporter {
                         .append("    m.counterNames.Push(\"").append(brs(page.counter().label())).append("\")\n")
                         .append("    m.counterValues.Push(").append(page.counter().initialValue()).append(")\n");
             }
+            if (page.slideshow() == null) {
+                result.append("    m.slideTimers.Push(invalid)\n    m.slides.Push([])\n    m.slideIndexes.Push(0)\n");
+            } else {
+                result.append("    timer = m.top.findNode(\"slideshow_timer_").append(pageIndex)
+                        .append("\")\n    timer.ObserveField(\"fire\", \"onSlideshowTick\")\n")
+                        .append("    m.slideTimers.Push(timer)\n    m.slides.Push([");
+                for (int slideIndex = 0; slideIndex < page.slideshow().sources().size(); slideIndex++) {
+                    if (slideIndex > 0) result.append(", ");
+                    result.append("m.top.findNode(\"slide_").append(pageIndex).append('_').append(slideIndex).append("\")");
+                }
+                result.append("])\n    m.slideIndexes.Push(0)\n");
+            }
         }
         return result.append("""
                     showPage(0)
                 end sub
 
                 sub showPage(index as Integer)
+                    if m.pageIndex >= 0
+                        if m.slideTimers[m.pageIndex] <> invalid then m.slideTimers[m.pageIndex].control = "stop"
+                    end if
                     for i = 0 to m.pages.Count() - 1
                         m.pages[i].visible = (i = index)
                     end for
                     m.pageIndex = index
                     m.selection = 0
                     updateFocus()
+                    if m.slideTimers[index] <> invalid then m.slideTimers[index].control = "start"
+                end sub
+
+                sub onSlideshowTick()
+                    index = m.pageIndex
+                    if index < 0 then return
+                    if m.slides[index].Count() = 0 then return
+                    slides = m.slides[index]
+                    slides[m.slideIndexes[index]].visible = false
+                    m.slideIndexes[index] = (m.slideIndexes[index] + 1) mod slides.Count()
+                    slides[m.slideIndexes[index]].visible = true
                 end sub
 
                 sub updateFocus()

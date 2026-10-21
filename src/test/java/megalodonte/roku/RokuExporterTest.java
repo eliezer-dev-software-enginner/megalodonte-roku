@@ -11,6 +11,7 @@ import megalodonte.components.Button;
 import megalodonte.components.Counter;
 import megalodonte.components.Text;
 import megalodonte.components.Image;
+import megalodonte.components.Slideshow;
 import megalodonte.theme.Theme;
 import megalodonte.application.Router;
 import java.util.List;
@@ -97,5 +98,33 @@ final class RokuExporterTest {
         Router router = new Router().route(page);
         assertEquals(List.of(page), router.pages());
         assertThrows(IllegalArgumentException.class, () -> router.route(page));
+    }
+
+    @Test void exportsTimedSlideshowAndItsImages() throws Exception {
+        byte[] png = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==");
+        Path first = temporary.resolve("one.png");
+        Path second = temporary.resolve("two.png");
+        Files.write(first, png);
+        Files.write(second, png);
+        RokuScene ads = new RokuScene("ads", "Ads", "Rotating images",
+                new Slideshow(List.of(first, second), 320, 185, 1280, 720, 5),
+                new Button("Home", "home"));
+        Path zip = temporary.resolve("slides.zip");
+        RokuExporter.export(List.of(new RokuScene("home", "Home", "Start", new Button("Ads", "ads")), ads),
+                "Slides", zip);
+        try (ZipFile archive = new ZipFile(zip.toFile())) {
+            assertNotNull(archive.getEntry("images/content-0.png"));
+            assertNotNull(archive.getEntry("images/content-1.png"));
+            String xml = new String(archive.getInputStream(archive.getEntry("components/MainScene.xml")).readAllBytes());
+            String script = new String(archive.getInputStream(archive.getEntry("components/MainScene.brs")).readAllBytes());
+            assertTrue(xml.contains("<Timer id=\"slideshow_timer_1\" repeat=\"true\" duration=\"5\""));
+            assertTrue(xml.contains("id=\"slide_1_0\""));
+            assertTrue(xml.contains("id=\"slide_1_1\""));
+            assertTrue(script.contains("timer.ObserveField(\"fire\", \"onSlideshowTick\")"));
+            assertTrue(script.contains("m.slideTimers[m.pageIndex].control = \"stop\""));
+            assertTrue(script.contains("m.slideTimers[index].control = \"start\""));
+            assertTrue(script.contains("m.slideIndexes[index] = (m.slideIndexes[index] + 1) mod slides.Count()"));
+        }
     }
 }

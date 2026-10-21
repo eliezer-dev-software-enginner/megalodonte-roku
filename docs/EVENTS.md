@@ -18,6 +18,13 @@ The counter's BrightScript value is updated on `OK`, then its SceneGraph
 `Label.text` field is set. This is a direct state-to-view update, not a field
 observer or the desktop/Android Java reactivity runtime.
 
+## Implemented: timer field observer
+
+`Slideshow` generates a repeating SceneGraph `Timer`. The generated scene
+observes its `fire` field and advances the visible poster in the callback.
+The timer starts on entering its route and stops on leaving it. This follows
+the [official Timer node example](https://developer.roku.com/dev/docs/timer).
+
 ## Future event contracts
 
 - For nodes that handle keys internally, use `observeField()` on the relevant
@@ -28,5 +35,5 @@ observer or the desktop/Android Java reactivity runtime.
 - Add typed Java build models and generated BrightScript handlers together;
   do not expose a Java callback that cannot execute on the TV.
 
-The current target does not implement field observers, functional fields,
-Task-based data loading, or arbitrary client callbacks.
+The current target does not implement general-purpose field observers,
+functional fields, Task-based data loading, or arbitrary client callbacks.

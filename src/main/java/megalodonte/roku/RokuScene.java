@@ -7,6 +7,7 @@ import megalodonte.components.Button;
 import megalodonte.components.Text;
 import megalodonte.components.Image;
 import megalodonte.components.Counter;
+import megalodonte.components.Slideshow;
 
 /**
  * One named page with text and remote-control actions.
@@ -18,9 +19,10 @@ import megalodonte.components.Counter;
  * @param counter optional counter, or {@code null} when absent
  * @param texts additional static labels
  * @param images local images to embed as posters
+ * @param slideshow optional timed image sequence
  */
 public record RokuScene(String route, String heading, String message, List<RokuButton> buttons,
-                        RokuCounter counter, List<RokuText> texts, List<RokuImage> images) {
+                        RokuCounter counter, List<RokuText> texts, List<RokuImage> images, Slideshow slideshow) {
     /** Validates the route and actions, and copies the button list. */
     public RokuScene {
         if (route == null || !route.matches("[a-z][a-z0-9-]*"))
@@ -41,7 +43,7 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param message page body text
      */
     public RokuScene(String heading, String message) {
-        this("home", heading, message, List.of(), null, List.of(), List.of());
+        this("home", heading, message, List.of(), null, List.of(), List.of(), null);
     }
 
     /**
@@ -52,7 +54,7 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param buttons focusable actions
      */
     public RokuScene(String route, String heading, String message, List<RokuButton> buttons) {
-        this(route, heading, message, buttons, null, List.of(), List.of());
+        this(route, heading, message, buttons, null, List.of(), List.of(), null);
     }
 
     /**
@@ -64,7 +66,22 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param counter reactive counter
      */
     public RokuScene(String route, String heading, String message, List<RokuButton> buttons, RokuCounter counter) {
-        this(route, heading, message, buttons, counter, List.of(), List.of());
+        this(route, heading, message, buttons, counter, List.of(), List.of(), null);
+    }
+
+    /**
+     * Preserves the constructor used before slideshow support.
+     * @param route unique lowercase route
+     * @param heading page heading
+     * @param message page body text
+     * @param buttons focusable actions
+     * @param counter optional counter
+     * @param texts additional labels
+     * @param images static posters
+     */
+    public RokuScene(String route, String heading, String message, List<RokuButton> buttons,
+                     RokuCounter counter, List<RokuText> texts, List<RokuImage> images) {
+        this(route, heading, message, buttons, counter, texts, images, null);
     }
 
     /**
@@ -85,7 +102,8 @@ public record RokuScene(String route, String heading, String message, List<RokuB
                 Arrays.stream(components).filter(Text.class::isInstance).map(Text.class::cast)
                         .map(text -> new RokuText(text.value(), text.x(), text.y(), text.width(), text.height())).toList(),
                 Arrays.stream(components).filter(Image.class::isInstance).map(Image.class::cast)
-                        .map(image -> new RokuImage(image.source(), image.x(), image.y(), image.width(), image.height())).toList());
+                        .map(image -> new RokuImage(image.source(), image.x(), image.y(), image.width(), image.height())).toList(),
+                slideshowFrom(components));
     }
 
     private static RokuCounter counterFrom(Component[] components) {
@@ -93,5 +111,12 @@ public record RokuScene(String route, String heading, String message, List<RokuB
                 .map(Counter.class::cast).toList();
         if (counters.size() > 1) throw new IllegalArgumentException("Only one counter is supported per page");
         return counters.isEmpty() ? null : new RokuCounter(counters.getFirst().label(), counters.getFirst().initialValue());
+    }
+
+    private static Slideshow slideshowFrom(Component[] components) {
+        List<Slideshow> slideshows = Arrays.stream(components).filter(Slideshow.class::isInstance)
+                .map(Slideshow.class::cast).toList();
+        if (slideshows.size() > 1) throw new IllegalArgumentException("Only one slideshow is supported per page");
+        return slideshows.isEmpty() ? null : slideshows.getFirst();
     }
 }
