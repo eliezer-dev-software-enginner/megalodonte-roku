@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import megalodonte.theme.Theme;
 
 /** Converts Java page models into a Roku sideload ZIP at build time. */
 public final class RokuExporter {
@@ -24,7 +25,7 @@ public final class RokuExporter {
         if (args.length != 3) throw new IllegalArgumentException("Usage: RokuExporter <screen-class> <title> <zip>");
         Class<?> type = Class.forName(args[0]);
         RokuScreen screen = (RokuScreen) type.getDeclaredConstructor().newInstance();
-        export(screen.pages(), args[1], Path.of(args[2]));
+        export(screen.pages(), args[1], Path.of(args[2]), screen.theme());
     }
 
     /**
@@ -48,6 +49,19 @@ public final class RokuExporter {
      * @throws IOException if the ZIP cannot be written
      */
     public static void export(List<RokuScene> pages, String title, Path zip) throws IOException {
+        export(pages, title, zip, Theme.defaultTheme());
+    }
+
+    /**
+     * Exports pages with a custom build-time palette.
+     * @param pages pages in navigation order
+     * @param title title shown by Roku
+     * @param zip destination ZIP path
+     * @param theme color palette
+     * @throws IOException if the ZIP cannot be written
+     */
+    public static void export(List<RokuScene> pages, String title, Path zip, Theme theme) throws IOException {
+        if (theme == null) throw new IllegalArgumentException("Theme is required");
         if (title == null || title.isBlank() || title.contains("\n") || title.contains("\r") || title.contains("="))
             throw new IllegalArgumentException("Invalid Roku application title");
         if (pages == null || pages.isEmpty()) throw new IllegalArgumentException("At least one page is required");
@@ -93,8 +107,8 @@ public final class RokuExporter {
                     end while
                 end sub
                 """.getBytes(StandardCharsets.UTF_8));
-        files.put("components/MainScene.xml", sceneXml(pages, imageUris).getBytes(StandardCharsets.UTF_8));
-        files.put("components/MainScene.brs", sceneScript(pages, routes).getBytes(StandardCharsets.UTF_8));
+        files.put("components/MainScene.xml", sceneXml(pages, imageUris, theme).getBytes(StandardCharsets.UTF_8));
+        files.put("components/MainScene.brs", sceneScript(pages, routes, theme).getBytes(StandardCharsets.UTF_8));
         try (var icon = RokuExporter.class.getResourceAsStream("/megalodonte/roku/icon.png")) {
             if (icon == null) throw new IOException("Missing Roku icon resource");
             files.put("images/icon.png", icon.readAllBytes());
@@ -115,14 +129,15 @@ public final class RokuExporter {
                 .replace("\"", "&quot;").replace("'", "&apos;");
     }
 
-    private static String sceneXml(List<RokuScene> pages, Map<RokuImage, String> imageUris) {
+    private static String sceneXml(List<RokuScene> pages, Map<RokuImage, String> imageUris, Theme theme) {
         StringBuilder result = new StringBuilder("""
                 <?xml version="1.0" encoding="utf-8"?>
                 <component name="MainScene" extends="Scene">
                   <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
                   <children>
-                    <Rectangle width="1920" height="1080" color="0x142536FF" />
+                    <Rectangle width="1920" height="1080" color="%s" />
                 """);
+        result = new StringBuilder(result.toString().formatted(theme.background()));
         for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
             RokuScene page = pages.get(pageIndex);
             result.append("    <Group id=\"page_").append(pageIndex).append("\" visible=\"")
@@ -135,30 +150,30 @@ public final class RokuExporter {
                     .append(xml(text.value())).append("\" translation=\"[")
                     .append(text.x()).append(',').append(text.y()).append("]\" width=\"")
                     .append(text.width()).append("\" height=\"").append(text.height())
-                    .append("\" color=\"0xFFFFFFFF\" />\n");
+                    .append("\" color=\"").append(theme.text()).append("\" />\n");
             result.append("      <Label text=\"").append(xml(page.heading()))
-                    .append("\" translation=\"[180, 230]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"0x7CE0D6FF\" />\n")
+                    .append("\" translation=\"[180, 230]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"").append(theme.heading()).append("\" />\n")
                     .append("      <Label text=\"").append(xml(page.message()))
-                    .append("\" translation=\"[180, 370]\" width=\"1560\" height=\"150\" horizAlign=\"center\" color=\"0xFFFFFFFF\" />\n");
+                    .append("\" translation=\"[180, 370]\" width=\"1560\" height=\"150\" horizAlign=\"center\" color=\"").append(theme.text()).append("\" />\n");
             if (page.counter() != null) result.append("      <Label id=\"counter_").append(pageIndex)
                     .append("\" text=\"").append(xml(page.counter().label())).append(": ")
                     .append(page.counter().initialValue())
-                    .append("\" translation=\"[180, 520]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"0xFFFFFFFF\" />\n");
+                    .append("\" translation=\"[180, 520]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"").append(theme.text()).append("\" />\n");
             int top = page.counter() == null ? 570 : 650;
             for (int buttonIndex = 0; buttonIndex < page.buttons().size(); buttonIndex++) {
                 result.append("      <Rectangle id=\"button_bg_").append(pageIndex).append('_').append(buttonIndex)
                         .append("\" translation=\"[610, ").append(top + buttonIndex * 85)
-                        .append("]\" width=\"700\" height=\"66\" color=\"0x31566EFF\" />\n")
+                        .append("]\" width=\"700\" height=\"66\" color=\"").append(theme.button()).append("\" />\n")
                         .append("      <Label text=\"").append(xml(page.buttons().get(buttonIndex).label()))
                         .append("\" translation=\"[620, ").append(top + buttonIndex * 85 + 10)
-                        .append("]\" width=\"680\" height=\"50\" horizAlign=\"center\" color=\"0xFFFFFFFF\" />\n");
+                        .append("]\" width=\"680\" height=\"50\" horizAlign=\"center\" color=\"").append(theme.text()).append("\" />\n");
             }
             result.append("    </Group>\n");
         }
         return result.append("  </children>\n</component>\n").toString();
     }
 
-    private static String sceneScript(List<RokuScene> pages, Map<String, Integer> routes) {
+    private static String sceneScript(List<RokuScene> pages, Map<String, Integer> routes, Theme theme) {
         StringBuilder result = new StringBuilder("""
                 sub init()
                     m.pages = []
@@ -209,7 +224,7 @@ public final class RokuExporter {
                     buttons = m.buttonRects[m.pageIndex]
                     if buttons.Count() = 0 then return
                     for i = 0 to buttons.Count() - 1
-                        if i = m.selection then buttons[i].color = "0x237E9DFF" else buttons[i].color = "0x31566EFF"
+                        if i = m.selection then buttons[i].color = "%s" else buttons[i].color = "%s"
                     end for
                 end sub
 
@@ -240,7 +255,7 @@ public final class RokuExporter {
                     end if
                     return false
                 end function
-                """).toString();
+                """.formatted(theme.focusedButton(), theme.button())).toString();
     }
 
     private static String brs(String value) {

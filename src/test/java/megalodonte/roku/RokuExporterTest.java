@@ -7,6 +7,12 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import megalodonte.components.Button;
+import megalodonte.components.Counter;
+import megalodonte.components.Text;
+import megalodonte.components.Image;
+import megalodonte.theme.Theme;
+import megalodonte.application.Router;
 import java.util.List;
 import java.util.zip.ZipFile;
 
@@ -63,5 +69,33 @@ final class RokuExporterTest {
             assertEquals("A & B", xml.getElementsByTagName("Label").item(0)
                     .getAttributes().getNamedItem("text").getNodeValue());
         }
+    }
+
+    @Test void acceptsClientComponentsAndAppliesTheme() throws Exception {
+        Path source = temporary.resolve("asset.png");
+        Files.write(source, Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=="));
+        RokuScene scene = new RokuScene("home", "Home", "Message",
+                new Image(source, 10, 20, 100, 100), new Text("Extra", 10, 130, 200, 30),
+                new Counter("Clicks", 0), Button.increment("Add"));
+        Theme theme = new Theme("0x101010FF", "0x202020FF", "0x303030FF", "0x404040FF", "0x505050FF");
+        Path zip = temporary.resolve("themed.zip");
+        RokuExporter.export(List.of(scene), "Themed", zip, theme);
+        try (ZipFile archive = new ZipFile(zip.toFile())) {
+            String xml = new String(archive.getInputStream(archive.getEntry("components/MainScene.xml")).readAllBytes());
+            String script = new String(archive.getInputStream(archive.getEntry("components/MainScene.brs")).readAllBytes());
+            assertTrue(xml.contains("<Poster uri=\"pkg:/images/content-0.png\""));
+            assertTrue(xml.contains("text=\"Extra\""));
+            assertTrue(xml.contains("color=\"0x101010FF\""));
+            assertTrue(script.contains("0x505050FF"));
+            assertTrue(script.contains("m.counterValues[m.pageIndex] = m.counterValues[m.pageIndex] + 1"));
+        }
+    }
+
+    @Test void routerRejectsDuplicateRoutes() {
+        RokuScene page = new RokuScene("home", "Home", "Welcome");
+        Router router = new Router().route(page);
+        assertEquals(List.of(page), router.pages());
+        assertThrows(IllegalArgumentException.class, () -> router.route(page));
     }
 }

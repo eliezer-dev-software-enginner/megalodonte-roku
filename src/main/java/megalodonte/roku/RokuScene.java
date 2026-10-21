@@ -1,6 +1,12 @@
 package megalodonte.roku;
 
 import java.util.List;
+import java.util.Arrays;
+import megalodonte.components.Component;
+import megalodonte.components.Button;
+import megalodonte.components.Text;
+import megalodonte.components.Image;
+import megalodonte.components.Counter;
 
 /**
  * One named page with text and remote-control actions.
@@ -59,5 +65,33 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      */
     public RokuScene(String route, String heading, String message, List<RokuButton> buttons, RokuCounter counter) {
         this(route, heading, message, buttons, counter, List.of(), List.of());
+    }
+
+    /**
+     * Creates a page from the client-facing Megalodonte component names.
+     * Buttons are focusable; images and text are static content.
+     * @param route unique lowercase route
+     * @param heading page heading
+     * @param message page body text
+     * @param components supported Roku components
+     */
+    public RokuScene(String route, String heading, String message, Component... components) {
+        this(route, heading, message,
+                Arrays.stream(components).filter(Button.class::isInstance).map(Button.class::cast)
+                        .map(button -> button.action() == Button.Action.INCREMENT
+                                ? RokuButton.increment(button.label())
+                                : new RokuButton(button.label(), button.targetRoute())).toList(),
+                counterFrom(components),
+                Arrays.stream(components).filter(Text.class::isInstance).map(Text.class::cast)
+                        .map(text -> new RokuText(text.value(), text.x(), text.y(), text.width(), text.height())).toList(),
+                Arrays.stream(components).filter(Image.class::isInstance).map(Image.class::cast)
+                        .map(image -> new RokuImage(image.source(), image.x(), image.y(), image.width(), image.height())).toList());
+    }
+
+    private static RokuCounter counterFrom(Component[] components) {
+        List<Counter> counters = Arrays.stream(components).filter(Counter.class::isInstance)
+                .map(Counter.class::cast).toList();
+        if (counters.size() > 1) throw new IllegalArgumentException("Only one counter is supported per page");
+        return counters.isEmpty() ? null : new RokuCounter(counters.getFirst().label(), counters.getFirst().initialValue());
     }
 }

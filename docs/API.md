@@ -4,6 +4,31 @@
 `RokuScreen`, calls `pages()`, validates the model, and emits a native Roku ZIP.
 No Java bytecode is shipped to the TV.
 
+## Client-facing components and theme
+
+Roku projects can import `megalodonte.components.Button`, `Text`, `Image`, and
+`Counter`, matching the unprefixed component naming used by the Android target.
+The component implementations remain platform-specific: Roku converts them to
+SceneGraph at build time. A `RokuScene` accepts these components directly:
+
+```java
+new RokuScene("home", "Welcome", "Choose a page",
+        new Text("Featured", 100, 100, 500, 60),
+        new Image(Path.of("assets/featured.png"), 100, 180, 600, 340),
+        new Button("About", "about"));
+```
+
+Override `RokuScreen.theme()` to provide `megalodonte.theme.Theme`, a palette
+with background, heading, text, button, and focused-button colors in
+`0xRRGGBBAA` format. This is a build-time palette, not runtime theme switching.
+The older `RokuButton`, `RokuText`, `RokuImage`, and `RokuCounter` models remain
+available to existing applications.
+
+`megalodonte.application.Router` can register pages with `route(page)` and
+return their ordered list via `pages()`. The first route starts the app;
+navigation and Back are implemented by the generated BrightScript. This router
+is a build-time registry, not a Java object running on the TV.
+
 ## Pages and navigation
 
 Implement `RokuScreen.render()` for the first page. Override `pages()` to
