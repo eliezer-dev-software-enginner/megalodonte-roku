@@ -23,3 +23,12 @@
 The Gradle build and BrighterScript validation check package structure and
 syntax. They do not substitute for testing focus and rendering on Roku
 hardware. Roku permits only one sideloaded app at a time.
+
+## Device validation
+
+On 2026-10-21, the project owner sideloaded the generated
+`roku-hello-world.zip` on a Roku TV and reported successful operation. Photos
+show the Home, About, and Counter pages, a focused button, and the counter
+changing from 0 to 4. This confirms rendering, route navigation, remote-control
+focus, and counter updates for that device and package. The photos do not test
+packaged content images, custom palettes, or behavior across other Roku models.
