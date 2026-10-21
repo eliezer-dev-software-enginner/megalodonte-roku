@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.List;
 import java.util.zip.ZipFile;
 
@@ -41,5 +43,25 @@ final class RokuExporterTest {
         assertFalse(zip.toFile().exists());
         assertThrows(IllegalArgumentException.class, () -> new RokuScene("home", "Home", "Choose",
                 List.of(RokuButton.increment("Add"))));
+    }
+
+    @Test void packagesImageAndAdditionalTextAsSceneGraphNodes() throws Exception {
+        Path source = temporary.resolve("photo.png");
+        Files.write(source, Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=="));
+        Path zip = temporary.resolve("image.zip");
+        RokuScene scene = new RokuScene("home", "Home", "Message", List.of(), null,
+                List.of(new RokuText("A & B", 10, 20, 300, 40)),
+                List.of(new RokuImage(source, 20, 70, 400, 250)));
+        RokuExporter.export(scene, "Image test", zip);
+        try (ZipFile archive = new ZipFile(zip.toFile())) {
+            assertNotNull(archive.getEntry("images/content-0.png"));
+            var xml = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                    .parse(archive.getInputStream(archive.getEntry("components/MainScene.xml")));
+            assertEquals("pkg:/images/content-0.png", xml.getElementsByTagName("Poster").item(0)
+                    .getAttributes().getNamedItem("uri").getNodeValue());
+            assertEquals("A & B", xml.getElementsByTagName("Label").item(0)
+                    .getAttributes().getNamedItem("text").getNodeValue());
+        }
     }
 }

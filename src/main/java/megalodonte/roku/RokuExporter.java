@@ -62,6 +62,20 @@ public final class RokuExporter {
                 throw new IllegalArgumentException("Unknown route: " + button.targetRoute());
         }
         Map<String, byte[]> files = new LinkedHashMap<>();
+        Map<RokuImage, String> imageUris = new LinkedHashMap<>();
+        for (RokuScene page : pages) for (RokuImage image : page.images()) {
+            if (imageUris.containsKey(image)) continue;
+            byte[] bytes = Files.readAllBytes(image.source());
+            String extension;
+            if (bytes.length >= 8 && bytes[0] == (byte) 0x89 && bytes[1] == 'P'
+                    && bytes[2] == 'N' && bytes[3] == 'G') extension = ".png";
+            else if (bytes.length >= 3 && bytes[0] == (byte) 0xff && bytes[1] == (byte) 0xd8
+                    && bytes[2] == (byte) 0xff) extension = ".jpg";
+            else throw new IllegalArgumentException("Roku images must be PNG or JPEG: " + image.source());
+            String entry = "images/content-" + imageUris.size() + extension;
+            imageUris.put(image, "pkg:/" + entry);
+            files.put(entry, bytes);
+        }
         files.put("manifest", ("title=" + title + "\nmajor_version=0\nminor_version=1\nbuild_version=00001\n"
                 + "ui_resolutions=fhd\nmm_icon_focus_hd=pkg:/images/icon.png\n"
                 + "mm_icon_focus_sd=pkg:/images/icon.png\n").getBytes(StandardCharsets.UTF_8));
@@ -79,7 +93,7 @@ public final class RokuExporter {
                     end while
                 end sub
                 """.getBytes(StandardCharsets.UTF_8));
-        files.put("components/MainScene.xml", sceneXml(pages).getBytes(StandardCharsets.UTF_8));
+        files.put("components/MainScene.xml", sceneXml(pages, imageUris).getBytes(StandardCharsets.UTF_8));
         files.put("components/MainScene.brs", sceneScript(pages, routes).getBytes(StandardCharsets.UTF_8));
         try (var icon = RokuExporter.class.getResourceAsStream("/megalodonte/roku/icon.png")) {
             if (icon == null) throw new IOException("Missing Roku icon resource");
@@ -101,7 +115,7 @@ public final class RokuExporter {
                 .replace("\"", "&quot;").replace("'", "&apos;");
     }
 
-    private static String sceneXml(List<RokuScene> pages) {
+    private static String sceneXml(List<RokuScene> pages, Map<RokuImage, String> imageUris) {
         StringBuilder result = new StringBuilder("""
                 <?xml version="1.0" encoding="utf-8"?>
                 <component name="MainScene" extends="Scene">
@@ -112,8 +126,17 @@ public final class RokuExporter {
         for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
             RokuScene page = pages.get(pageIndex);
             result.append("    <Group id=\"page_").append(pageIndex).append("\" visible=\"")
-                    .append(pageIndex == 0).append("\">\n")
-                    .append("      <Label text=\"").append(xml(page.heading()))
+                    .append(pageIndex == 0).append("\">\n");
+            for (RokuImage image : page.images()) result.append("      <Poster uri=\"")
+                    .append(xml(imageUris.get(image))).append("\" translation=\"[")
+                    .append(image.x()).append(',').append(image.y()).append("]\" width=\"")
+                    .append(image.width()).append("\" height=\"").append(image.height()).append("\" />\n");
+            for (RokuText text : page.texts()) result.append("      <Label text=\"")
+                    .append(xml(text.value())).append("\" translation=\"[")
+                    .append(text.x()).append(',').append(text.y()).append("]\" width=\"")
+                    .append(text.width()).append("\" height=\"").append(text.height())
+                    .append("\" color=\"0xFFFFFFFF\" />\n");
+            result.append("      <Label text=\"").append(xml(page.heading()))
                     .append("\" translation=\"[180, 230]\" width=\"1560\" height=\"100\" horizAlign=\"center\" color=\"0x7CE0D6FF\" />\n")
                     .append("      <Label text=\"").append(xml(page.message()))
                     .append("\" translation=\"[180, 370]\" width=\"1560\" height=\"150\" horizAlign=\"center\" color=\"0xFFFFFFFF\" />\n");

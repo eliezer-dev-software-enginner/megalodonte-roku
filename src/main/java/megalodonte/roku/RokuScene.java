@@ -10,8 +10,11 @@ import java.util.List;
  * @param message page body text
  * @param buttons up to five focusable actions
  * @param counter optional counter, or {@code null} when absent
+ * @param texts additional static labels
+ * @param images local images to embed as posters
  */
-public record RokuScene(String route, String heading, String message, List<RokuButton> buttons, RokuCounter counter) {
+public record RokuScene(String route, String heading, String message, List<RokuButton> buttons,
+                        RokuCounter counter, List<RokuText> texts, List<RokuImage> images) {
     /** Validates the route and actions, and copies the button list. */
     public RokuScene {
         if (route == null || !route.matches("[a-z][a-z0-9-]*"))
@@ -19,6 +22,8 @@ public record RokuScene(String route, String heading, String message, List<RokuB
         if (heading == null || heading.isBlank() || message == null || message.isBlank())
             throw new IllegalArgumentException("A Roku scene needs a heading and message");
         buttons = List.copyOf(buttons);
+        texts = List.copyOf(texts);
+        images = List.copyOf(images);
         if (buttons.size() > 5) throw new IllegalArgumentException("A Roku scene supports up to five buttons");
         if (counter == null && buttons.stream().anyMatch(button -> button.action() == RokuButton.Action.INCREMENT))
             throw new IllegalArgumentException("An increment button needs a counter on the same page");
@@ -30,7 +35,7 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param message page body text
      */
     public RokuScene(String heading, String message) {
-        this("home", heading, message, List.of(), null);
+        this("home", heading, message, List.of(), null, List.of(), List.of());
     }
 
     /**
@@ -41,6 +46,18 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param buttons focusable actions
      */
     public RokuScene(String route, String heading, String message, List<RokuButton> buttons) {
-        this(route, heading, message, buttons, null);
+        this(route, heading, message, buttons, null, List.of(), List.of());
+    }
+
+    /**
+     * Creates a page with a counter and no additional content.
+     * @param route unique lowercase route
+     * @param heading page heading
+     * @param message page body text
+     * @param buttons focusable actions
+     * @param counter reactive counter
+     */
+    public RokuScene(String route, String heading, String message, List<RokuButton> buttons, RokuCounter counter) {
+        this(route, heading, message, buttons, counter, List.of(), List.of());
     }
 }

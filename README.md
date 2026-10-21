@@ -5,7 +5,7 @@ returns a `RokuScene`; `RokuExporter` evaluates that Java screen during the
 Gradle build and writes a sideload ZIP containing a Roku manifest, SceneGraph
 XML, BrightScript entry point, and icon. **Java does not run on the Roku TV.**
 
-The API supports named pages, heading/message text, remote-control buttons,
+The API supports named pages, text labels, packaged PNG/JPEG images, remote-control buttons,
 route history, and a counter that updates its label at runtime. It is a
 foundation for explicit Roku-compatible components and behaviors, without
 promising arbitrary Java-to-BrightScript translation. Generated

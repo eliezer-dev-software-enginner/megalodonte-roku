@@ -30,6 +30,22 @@ and **Back** returns to the previous page. Navigating back keeps the counter's
 current value while the app remains open. The generated scene currently fits
 up to five buttons per page at FHD resolution.
 
+## Text and images
+
+Use `RokuText` for additional static labels and `RokuImage` for local PNG or
+JPEG assets. Coordinates and sizes use the generated 1920 × 1080 scene. The
+exporter copies image bytes into the ZIP and emits a SceneGraph `Poster` with a
+`pkg:/images/...` URI. The path is read on the build machine, not on the TV.
+
+```java
+new RokuScene("home", "Welcome", "Choose a page", List.of(), null,
+        List.of(new RokuText("Featured", 100, 100, 500, 60)),
+        List.of(new RokuImage(Path.of("assets/featured.png"), 100, 180, 600, 340)));
+```
+
+These Roku-specific build models are static in this version; the counter is
+the supported runtime-updating element.
+
 ## Reactive state
 
 `RokuCounter(label, initialValue)` binds a displayed number to a runtime
