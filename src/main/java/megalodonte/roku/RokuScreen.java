@@ -1,9 +1,16 @@
 package megalodonte.roku;
 
-/** Build-time description of one Roku SceneGraph screen. */
+/** Supplies the Java model that the exporter converts to Roku SceneGraph files at build time. */
 public interface RokuScreen {
+    /**
+     * Returns the default page. Used by {@link #pages()} for a single-page application.
+     * @return the page to export
+     */
     RokuScene render();
 
-    /** Override to expose multiple routes; the first page is the start page. */
+    /**
+     * Returns all pages in navigation order. Override for multiple routes; the first page starts the app.
+     * @return the pages to export
+     */
     default java.util.List<RokuScene> pages() { return java.util.List.of(render()); }
 }

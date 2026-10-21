@@ -11,10 +11,15 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-/** Executes a Java screen at build time and writes a Roku sideload ZIP. */
+/** Converts Java page models into a Roku sideload ZIP at build time. */
 public final class RokuExporter {
     private RokuExporter() { }
 
+    /**
+     * Exports a screen class from the command line.
+     * @param args screen class name, application title, output ZIP path
+     * @throws Exception if the class cannot be loaded or the ZIP cannot be written
+     */
     public static void main(String[] args) throws Exception {
         if (args.length != 3) throw new IllegalArgumentException("Usage: RokuExporter <screen-class> <title> <zip>");
         Class<?> type = Class.forName(args[0]);
@@ -22,10 +27,26 @@ public final class RokuExporter {
         export(screen.pages(), args[1], Path.of(args[2]));
     }
 
+    /**
+     * Exports a single-page application.
+     * @param scene page to export
+     * @param title title shown by Roku
+     * @param zip destination ZIP path
+     * @throws IOException if the ZIP cannot be written
+     */
     public static void export(RokuScene scene, String title, Path zip) throws IOException {
         export(List.of(scene), title, zip);
     }
 
+    /**
+     * Exports a multi-page application; the first page is the start page.
+     * All navigation targets must name a route in {@code pages}.
+     * @param pages pages in navigation order
+     * @param title title shown by Roku
+     * @param zip destination ZIP path
+     * @throws IllegalArgumentException if routes or title are invalid
+     * @throws IOException if the ZIP cannot be written
+     */
     public static void export(List<RokuScene> pages, String title, Path zip) throws IOException {
         if (title == null || title.isBlank() || title.contains("\n") || title.contains("\r") || title.contains("="))
             throw new IllegalArgumentException("Invalid Roku application title");
