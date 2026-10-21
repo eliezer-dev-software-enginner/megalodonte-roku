@@ -27,6 +27,12 @@ It does not compile Java. Keep the exporter independent of Node.js so a normal
 Gradle/JDK build can always produce a sideload ZIP; use `bsc` in validation
 when available.
 
+Application-specific components can implement `RokuExtension`. Their XML,
+BrightScript, and media remain in the application checkout; the library only
+provides the packaging and route-lifecycle contract. The Tic Tac Toe example
+demonstrates this boundary. The example pins BrighterScript in npm development
+dependencies and runs it against the generated ZIP via `npm run validate:roku`.
+
 The current output targets FHD static layout plus route and counter behavior.
 Next platform work should add typed layout, artwork, data loading, and media
 playback one feature at a time, with device validation for each SceneGraph

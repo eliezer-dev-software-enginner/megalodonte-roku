@@ -85,6 +85,23 @@ new Slideshow(List.of(Path.of("assets/ad-01.png"), Path.of("assets/ad-02.png")),
 The [Roku Timer reference](https://developer.roku.com/dev/docs/timer) defines
 the `duration`, `repeat`, `control`, and observed `fire` fields used here.
 
+## Project-owned SceneGraph behavior
+
+An application can implement `megalodonte.components.RokuExtension` when its
+behavior goes beyond the built-in components. Keep the implementation, its
+BrightScript source, and its media in the **application repository**. The
+interface supplies the page's XML children, files to package under
+`components/` or `media/`, and BrightScript calls for initialization, enter,
+leave, and remote-key handling. The exporter embeds these resources in the
+ZIP and preserves router history. Only one extension page per package is
+currently supported. The Roku Hello World example keeps its Tic Tac Toe game
+in its own `src/main/` tree; the framework contains no game logic.
+
+An extension owns its page controls. Do not mix it with built-in buttons,
+counters, or slideshows on the same page. Project-supplied XML and BrightScript
+are trusted build input; validate the packaged output with BrighterScript and
+test behavior on a device.
+
 `RokuCounter(label, initialValue)` binds a displayed number to a runtime
 BrightScript value. `RokuButton.increment(label)` changes it and immediately
 updates the SceneGraph label. This proves the event → state → view path on Roku;

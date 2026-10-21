@@ -4,7 +4,9 @@
 2. Inspect the ZIP: `unzip -l build/roku/<project>.zip`. `manifest`,
    `source/main.brs`, `components/MainScene.xml`,
    `components/MainScene.brs`, and `images/icon.png` must be at the ZIP root.
-3. Optionally install BrighterScript from npm and validate extracted output:
+3. In the Roku Hello World example, run `npm ci` and `npm run validate:roku`.
+   The pinned [BrighterScript](https://github.com/rokucommunity/brighterscript)
+   checks the generated ZIP. For other projects, validate extracted output:
 
    ```sh
    mkdir -p /tmp/roku-validation
@@ -19,6 +21,10 @@
    **Increment** several times; the displayed number must increase without
    restarting the channel. Navigate away and return; the value should remain
    until the app exits.
+6. Open **Jogo da Velha**. Choose a mode with Left/Right and OK. Move through
+   the grid with the D-pad and place a mark with OK. Verify the machine and
+   two-player modes, tie behavior, first-to-three series, champion persistence
+   after relaunch, and music start/stop when entering or leaving this route.
 
 The Gradle build and BrighterScript validation check package structure and
 syntax. They do not substitute for testing focus and rendering on Roku

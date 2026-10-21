@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import megalodonte.theme.Theme;
+import megalodonte.components.RokuExtension;
 
 /** Converts Java page models into a Roku sideload ZIP at build time. */
 public final class RokuExporter {
@@ -76,7 +77,23 @@ public final class RokuExporter {
             if (button.action() == RokuButton.Action.NAVIGATE && !routes.containsKey(button.targetRoute()))
                 throw new IllegalArgumentException("Unknown route: " + button.targetRoute());
         }
+        int extensionPage = -1;
+        for (int index = 0; index < pages.size(); index++) if (pages.get(index).extension() != null) {
+            if (extensionPage >= 0) throw new IllegalArgumentException("Only one project extension is supported");
+            extensionPage = index;
+        }
         Map<String, byte[]> files = new LinkedHashMap<>();
+        if (extensionPage >= 0) {
+            RokuExtension extension = pages.get(extensionPage).extension();
+            for (var file : extension.files().entrySet()) {
+                String entry = file.getKey();
+                if (!entry.matches("(components|media)/[A-Za-z0-9._/-]+") || entry.contains(".."))
+                    throw new IllegalArgumentException("Invalid extension package path: " + entry);
+                if (entry.equals("components/MainScene.xml") || entry.equals("components/MainScene.brs"))
+                    throw new IllegalArgumentException("Reserved Roku package path: " + entry);
+                files.put(entry, Files.readAllBytes(file.getValue()));
+            }
+        }
         Map<RokuImage, String> imageUris = new LinkedHashMap<>();
         for (RokuScene page : pages) for (RokuImage image : allImages(page)) {
             if (imageUris.containsKey(image)) continue;
@@ -108,8 +125,8 @@ public final class RokuExporter {
                     end while
                 end sub
                 """.getBytes(StandardCharsets.UTF_8));
-        files.put("components/MainScene.xml", sceneXml(pages, imageUris, theme).getBytes(StandardCharsets.UTF_8));
-        files.put("components/MainScene.brs", sceneScript(pages, routes, theme).getBytes(StandardCharsets.UTF_8));
+        files.put("components/MainScene.xml", sceneXml(pages, imageUris, theme, extensionPage).getBytes(StandardCharsets.UTF_8));
+        files.put("components/MainScene.brs", sceneScript(pages, routes, theme, extensionPage).getBytes(StandardCharsets.UTF_8));
         try (var icon = RokuExporter.class.getResourceAsStream("/megalodonte/roku/icon.png")) {
             if (icon == null) throw new IOException("Missing Roku icon resource");
             files.put("images/icon.png", icon.readAllBytes());
@@ -138,7 +155,7 @@ public final class RokuExporter {
         return images;
     }
 
-    private static String sceneXml(List<RokuScene> pages, Map<RokuImage, String> imageUris, Theme theme) {
+    private static String sceneXml(List<RokuScene> pages, Map<RokuImage, String> imageUris, Theme theme, int extensionPage) {
         StringBuilder result = new StringBuilder("""
                 <?xml version="1.0" encoding="utf-8"?>
                 <component name="MainScene" extends="Scene">
@@ -147,10 +164,19 @@ public final class RokuExporter {
                     <Rectangle width="1920" height="1080" color="%s" />
                 """);
         result = new StringBuilder(result.toString().formatted(theme.background()));
+        if (extensionPage >= 0) for (String name : pages.get(extensionPage).extension().files().keySet())
+            if (name.startsWith("components/") && name.endsWith(".brs"))
+                result.insert(result.indexOf("  <children>"),
+                        "  <script type=\"text/brightscript\" uri=\"pkg:/" + name + "\" />\n");
         for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
             RokuScene page = pages.get(pageIndex);
             result.append("    <Group id=\"page_").append(pageIndex).append("\" visible=\"")
                     .append(pageIndex == 0).append("\">\n");
+            if (page.extension() != null) {
+                result.append(page.extension().sceneXml(theme));
+                result.append("    </Group>\n");
+                continue;
+            }
             for (RokuImage image : page.images()) result.append("      <Poster uri=\"")
                     .append(xml(imageUris.get(image))).append("\" translation=\"[")
                     .append(image.x()).append(',').append(image.y()).append("]\" width=\"")
@@ -200,7 +226,7 @@ public final class RokuExporter {
         return result.append("  </children>\n</component>\n").toString();
     }
 
-    private static String sceneScript(List<RokuScene> pages, Map<String, Integer> routes, Theme theme) {
+    private static String sceneScript(List<RokuScene> pages, Map<String, Integer> routes, Theme theme, int extensionPage) {
         StringBuilder result = new StringBuilder("""
                 sub init()
                     m.pages = []
@@ -250,11 +276,14 @@ public final class RokuExporter {
                 result.append("])\n    m.slideIndexes.Push(0)\n");
             }
         }
-        return result.append("""
+        RokuExtension extension = extensionPage < 0 ? null : pages.get(extensionPage).extension();
+        if (extension != null) result.append("    ").append(extension.initialize(extensionPage, theme)).append('\n');
+        String script = result.append("""
                     showPage(0)
                 end sub
 
                 sub showPage(index as Integer)
+                    __EXTENSION_LEAVE__
                     if m.pageIndex >= 0
                         if m.slideTimers[m.pageIndex] <> invalid then m.slideTimers[m.pageIndex].control = "stop"
                     end if
@@ -265,6 +294,7 @@ public final class RokuExporter {
                     m.selection = 0
                     updateFocus()
                     if m.slideTimers[index] <> invalid then m.slideTimers[index].control = "start"
+                    __EXTENSION_ENTER__
                 end sub
 
                 sub onSlideshowTick()
@@ -287,6 +317,7 @@ public final class RokuExporter {
 
                 function onKeyEvent(key as String, press as Boolean) as Boolean
                     if not press then return false
+                    __EXTENSION_KEY__
                     count = m.buttonRects[m.pageIndex].Count()
                     if key = "down" and count > 0
                         m.selection = (m.selection + 1) mod count
@@ -313,6 +344,22 @@ public final class RokuExporter {
                     return false
                 end function
                 """.formatted(theme.focusedButton(), theme.button())).toString();
+        if (extension == null) return script.replace("__EXTENSION_LEAVE__", "")
+                .replace("__EXTENSION_ENTER__", "").replace("__EXTENSION_KEY__", "");
+        return script.replace("__EXTENSION_LEAVE__", "if m.pageIndex = " + extensionPage + " then " + extension.leave())
+                .replace("__EXTENSION_ENTER__", "if index = " + extensionPage + " then " + extension.enter())
+                .replace("__EXTENSION_KEY__", """
+                        if m.pageIndex = %d
+                            if key = "back"
+                                if m.history.Count() > 0
+                                    showPage(m.history.Pop())
+                                    return true
+                                end if
+                                return false
+                            end if
+                            return %s
+                        end if
+                        """.formatted(extensionPage, extension.handleKey()));
     }
 
     private static String brs(String value) {

@@ -8,6 +8,7 @@ import megalodonte.components.Text;
 import megalodonte.components.Image;
 import megalodonte.components.Counter;
 import megalodonte.components.Slideshow;
+import megalodonte.components.RokuExtension;
 
 /**
  * One named page with text and remote-control actions.
@@ -20,9 +21,11 @@ import megalodonte.components.Slideshow;
  * @param texts additional static labels
  * @param images local images to embed as posters
  * @param slideshow optional timed image sequence
+ * @param extension optional project-owned SceneGraph component
  */
 public record RokuScene(String route, String heading, String message, List<RokuButton> buttons,
-                        RokuCounter counter, List<RokuText> texts, List<RokuImage> images, Slideshow slideshow) {
+                        RokuCounter counter, List<RokuText> texts, List<RokuImage> images,
+                        Slideshow slideshow, RokuExtension extension) {
     /** Validates the route and actions, and copies the button list. */
     public RokuScene {
         if (route == null || !route.matches("[a-z][a-z0-9-]*"))
@@ -35,6 +38,8 @@ public record RokuScene(String route, String heading, String message, List<RokuB
         if (buttons.size() > 5) throw new IllegalArgumentException("A Roku scene supports up to five buttons");
         if (counter == null && buttons.stream().anyMatch(button -> button.action() == RokuButton.Action.INCREMENT))
             throw new IllegalArgumentException("An increment button needs a counter on the same page");
+        if (extension != null && (slideshow != null || counter != null || !buttons.isEmpty()))
+            throw new IllegalArgumentException("An extension page owns its controls and cannot include buttons, a counter, or a slideshow");
     }
 
     /**
@@ -43,7 +48,7 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param message page body text
      */
     public RokuScene(String heading, String message) {
-        this("home", heading, message, List.of(), null, List.of(), List.of(), null);
+        this("home", heading, message, List.of(), null, List.of(), List.of(), null, null);
     }
 
     /**
@@ -54,7 +59,7 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param buttons focusable actions
      */
     public RokuScene(String route, String heading, String message, List<RokuButton> buttons) {
-        this(route, heading, message, buttons, null, List.of(), List.of(), null);
+        this(route, heading, message, buttons, null, List.of(), List.of(), null, null);
     }
 
     /**
@@ -66,7 +71,7 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      * @param counter reactive counter
      */
     public RokuScene(String route, String heading, String message, List<RokuButton> buttons, RokuCounter counter) {
-        this(route, heading, message, buttons, counter, List.of(), List.of(), null);
+        this(route, heading, message, buttons, counter, List.of(), List.of(), null, null);
     }
 
     /**
@@ -81,7 +86,22 @@ public record RokuScene(String route, String heading, String message, List<RokuB
      */
     public RokuScene(String route, String heading, String message, List<RokuButton> buttons,
                      RokuCounter counter, List<RokuText> texts, List<RokuImage> images) {
-        this(route, heading, message, buttons, counter, texts, images, null);
+        this(route, heading, message, buttons, counter, texts, images, null, null);
+    }
+
+    /** Preserves the constructor used before extension support.
+     * @param route unique lowercase route
+     * @param heading page heading
+     * @param message page body text
+     * @param buttons focusable actions
+     * @param counter optional counter
+     * @param texts additional labels
+     * @param images static posters
+     * @param slideshow optional timed image sequence
+     */
+    public RokuScene(String route, String heading, String message, List<RokuButton> buttons,
+                     RokuCounter counter, List<RokuText> texts, List<RokuImage> images, Slideshow slideshow) {
+        this(route, heading, message, buttons, counter, texts, images, slideshow, null);
     }
 
     /**
@@ -103,7 +123,7 @@ public record RokuScene(String route, String heading, String message, List<RokuB
                         .map(text -> new RokuText(text.value(), text.x(), text.y(), text.width(), text.height())).toList(),
                 Arrays.stream(components).filter(Image.class::isInstance).map(Image.class::cast)
                         .map(image -> new RokuImage(image.source(), image.x(), image.y(), image.width(), image.height())).toList(),
-                slideshowFrom(components));
+                slideshowFrom(components), extensionFrom(components));
     }
 
     private static RokuCounter counterFrom(Component[] components) {
@@ -118,5 +138,12 @@ public record RokuScene(String route, String heading, String message, List<RokuB
                 .map(Slideshow.class::cast).toList();
         if (slideshows.size() > 1) throw new IllegalArgumentException("Only one slideshow is supported per page");
         return slideshows.isEmpty() ? null : slideshows.getFirst();
+    }
+
+    private static RokuExtension extensionFrom(Component[] components) {
+        List<RokuExtension> extensions = Arrays.stream(components).filter(RokuExtension.class::isInstance)
+                .map(RokuExtension.class::cast).toList();
+        if (extensions.size() > 1) throw new IllegalArgumentException("Only one extension is supported per page");
+        return extensions.isEmpty() ? null : extensions.getFirst();
     }
 }

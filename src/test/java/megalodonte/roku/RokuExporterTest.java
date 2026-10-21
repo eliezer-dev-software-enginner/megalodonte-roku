@@ -12,9 +12,11 @@ import megalodonte.components.Counter;
 import megalodonte.components.Text;
 import megalodonte.components.Image;
 import megalodonte.components.Slideshow;
+import megalodonte.components.RokuExtension;
 import megalodonte.theme.Theme;
 import megalodonte.application.Router;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -125,6 +127,37 @@ final class RokuExporterTest {
             assertTrue(script.contains("m.slideTimers[m.pageIndex].control = \"stop\""));
             assertTrue(script.contains("m.slideTimers[index].control = \"start\""));
             assertTrue(script.contains("m.slideIndexes[index] = (m.slideIndexes[index] + 1) mod slides.Count()"));
+        }
+    }
+
+    @Test void packagesProjectOwnedExtensionWithoutPuttingItInTheLibrary() throws Exception {
+        Path scriptFile = temporary.resolve("LocalAction.brs");
+        Files.writeString(scriptFile, "function localHandle(key as String) as Boolean\n    return key = \"OK\"\nend function\n");
+        RokuExtension extension = new RokuExtension() {
+            @Override public String sceneXml(Theme theme) {
+                return "<Label id=\"local_label\" text=\"From project\" />";
+            }
+            @Override public Map<String, Path> files() {
+                return Map.of("components/LocalAction.brs", scriptFile);
+            }
+            @Override public String initialize(int pageIndex, Theme theme) { return "m.localPage = " + pageIndex; }
+            @Override public String enter() { return "m.localEntered = true"; }
+            @Override public String leave() { return "m.localEntered = false"; }
+            @Override public String handleKey() { return "localHandle(key)"; }
+        };
+        Path zip = temporary.resolve("extension.zip");
+        RokuExporter.export(List.of(new RokuScene("home", "Home", "Open",
+                new Button("Local", "local")),
+                new RokuScene("local", "Local", "Project behavior", extension)), "Extension", zip);
+        try (ZipFile archive = new ZipFile(zip.toFile())) {
+            assertNotNull(archive.getEntry("components/LocalAction.brs"));
+            String xml = new String(archive.getInputStream(archive.getEntry("components/MainScene.xml")).readAllBytes());
+            String script = new String(archive.getInputStream(archive.getEntry("components/MainScene.brs")).readAllBytes());
+            assertTrue(xml.contains("pkg:/components/LocalAction.brs"));
+            assertTrue(xml.contains("From project"));
+            assertTrue(script.contains("m.localPage = 1"));
+            assertTrue(script.contains("m.localEntered = true"));
+            assertTrue(script.contains("return localHandle(key)"));
         }
     }
 }
