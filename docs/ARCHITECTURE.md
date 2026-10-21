@@ -1,5 +1,10 @@
 # Roku target architecture
 
+## Roku references
+
+- [Defining SceneGraph components](https://developer.roku.com/dev/docs/defining-scenegraph-components) describes XML components, their `children`, and `Poster` nodes with `pkg:/images/...` asset URIs. The exporter uses these structures for pages and packaged images.
+- [BrightScript/XML markup equivalence](https://developer.roku.com/dev/docs/brightscript-xml-markup-equivalence) explains that SceneGraph nodes can be declared in XML and then located or updated in BrightScript. The exporter follows this pattern for focus, navigation, and counter updates.
+
 The Android target hosts Megalodonte Java components on Android. Roku devices
 have no JVM or JavaFX runtime, so the Roku target evaluates a restricted Java
 description during the build and ships only platform-native files:
