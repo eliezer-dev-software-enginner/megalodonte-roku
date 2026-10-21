@@ -19,5 +19,5 @@ Use `megalodonte <name> --platform roku --mode native` from
 [`megalodonte-cli`](https://github.com/eliezer-dev-software-enginner/megalodonte-cli).
 The generated project includes the Gradle Wrapper and a `packageRoku` task.
 
-See [API](docs/API.md), [architecture](docs/ARCHITECTURE.md), and
+See [API](docs/API.md), [architecture](docs/ARCHITECTURE.md), [events](docs/EVENTS.md), and
 [device testing](docs/TESTING.md) for the supported model and its limits.
