@@ -75,7 +75,9 @@ the supported runtime-updating element.
 
 `Slideshow` displays a list of local PNG/JPEG files in a loop. It packages the
 images as SceneGraph `Poster` nodes and uses a repeating `Timer`; the timer runs
-only while its route is active. The last image wraps back to the first.
+only while its route is active. The last image wraps back to the first. A page
+with a slideshow supports one button because additional buttons would extend
+below the generated FHD scene.
 
 ```java
 new Slideshow(List.of(Path.of("assets/ad-01.png"), Path.of("assets/ad-02.png")),

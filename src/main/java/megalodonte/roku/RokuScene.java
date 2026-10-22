@@ -16,7 +16,7 @@ import megalodonte.components.RokuExtension;
  * @param route unique lowercase route used by navigation buttons
  * @param heading page heading
  * @param message page body text
- * @param buttons up to five focusable actions
+ * @param buttons up to five focusable actions, or one when a slideshow is present
  * @param counter optional counter, or {@code null} when absent
  * @param texts additional static labels
  * @param images local images to embed as posters
@@ -26,7 +26,7 @@ import megalodonte.components.RokuExtension;
 public record RokuScene(String route, String heading, String message, List<RokuButton> buttons,
                         RokuCounter counter, List<RokuText> texts, List<RokuImage> images,
                         Slideshow slideshow, RokuExtension extension) {
-    /** Validates the route and actions, and copies the button list. */
+    /** Validates the route, actions, and slideshow button limit, and copies the lists. */
     public RokuScene {
         if (route == null || !route.matches("[a-z][a-z0-9-]*"))
             throw new IllegalArgumentException("Route must be lowercase kebab-case");
@@ -36,6 +36,8 @@ public record RokuScene(String route, String heading, String message, List<RokuB
         texts = List.copyOf(texts);
         images = List.copyOf(images);
         if (buttons.size() > 5) throw new IllegalArgumentException("A Roku scene supports up to five buttons");
+        if (slideshow != null && buttons.size() > 1)
+            throw new IllegalArgumentException("A slideshow scene supports only one visible button");
         if (counter == null && buttons.stream().anyMatch(button -> button.action() == RokuButton.Action.INCREMENT))
             throw new IllegalArgumentException("An increment button needs a counter on the same page");
         if (extension != null && (slideshow != null || counter != null || !buttons.isEmpty()))

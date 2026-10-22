@@ -130,6 +130,12 @@ final class RokuExporterTest {
         }
     }
 
+    @Test void rejectsSlideshowButtonsOutsideTheScene() {
+        Slideshow slideshow = new Slideshow(List.of(Path.of("one.png")), 320, 185, 1280, 720, 5);
+        assertThrows(IllegalArgumentException.class, () -> new RokuScene("ads", "Ads", "Choose",
+                slideshow, new Button("First", "home"), new Button("Second", "home")));
+    }
+
     @Test void packagesProjectOwnedExtensionWithoutPuttingItInTheLibrary() throws Exception {
         Path scriptFile = temporary.resolve("LocalAction.brs");
         Files.writeString(scriptFile, "function localHandle(key as String) as Boolean\n    return key = \"OK\"\nend function\n");
