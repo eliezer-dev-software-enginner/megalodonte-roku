@@ -15,9 +15,36 @@ BrightScript may be checked with [BrighterScript](https://github.com/rokucommuni
 (`bsc`) before sideloading; BrighterScript is a validator/transpiler for
 BrightScript, not a Java compiler.
 
+## Build this library
+
+This repository is a Java library, not a standalone Roku channel. It requires
+JDK 25 to build; the included Gradle Wrapper uses Gradle 9.2.0. From the
+repository root, run:
+
+```sh
+./gradlew build
+```
+
+The library can be used from a Java project that has it on its build classpath.
+For example, the exporter API accepts a scene, an application title, and a
+destination ZIP path:
+
+```java
+RokuExporter.export(new RokuScene("Hello", "Welcome"), "Hello", Path.of("build/roku/hello.zip"));
+```
+
+Import `megalodonte.roku.RokuExporter` and `RokuScene`, plus `java.nio.file.Path`.
+The exported ZIP contains the native Roku files; the Java classes are used only
+during the build. This repository's Gradle build does not define a `packageRoku`
+task.
+
+## Generated applications
+
 Use `megalodonte <name> --platform roku --mode native` from
 [`megalodonte-cli`](https://github.com/eliezer-dev-software-enginner/megalodonte-cli).
-The generated project includes the Gradle Wrapper and a `packageRoku` task.
+The generated project includes the Gradle Wrapper and a `packageRoku` task;
+run `./gradlew packageRoku` from that generated project's root to create its
+sideload ZIP.
 
 See [API](docs/API.md), [architecture](docs/ARCHITECTURE.md), [events](docs/EVENTS.md), and
 [device testing](docs/TESTING.md) for the supported model and its limits.
