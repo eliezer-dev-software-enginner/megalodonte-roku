@@ -1,9 +1,10 @@
 # Megalodonte Roku
 
 Build-time Java API for native Roku SceneGraph applications. A `RokuScreen`
-returns a `RokuScene`; `RokuExporter` evaluates that Java screen during the
-Gradle build and writes a sideload ZIP containing a Roku manifest, SceneGraph
-XML, BrightScript entry point, and icon. **Java does not run on the Roku TV.**
+supplies one or more `RokuScene` pages; when invoked by an application build,
+`RokuExporter` evaluates that screen and writes a sideload ZIP containing a
+Roku manifest, SceneGraph XML, BrightScript entry point, and icon. **Java does
+not run on the Roku TV.**
 
 The API supports named pages, text labels, packaged PNG/JPEG images, remote-control buttons,
 route history, and a counter that updates its label at runtime. It is a
