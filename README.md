@@ -1,5 +1,7 @@
 # Megalodonte Roku
 
+![Ícone de Megalodonte Roku](src/main/resources/megalodonte/roku/icon.png)
+
 Build-time Java API for native Roku SceneGraph applications. A `RokuScreen`
 supplies one or more `RokuScene` pages; when invoked by an application build,
 `RokuExporter` evaluates that screen and writes a sideload ZIP containing a
