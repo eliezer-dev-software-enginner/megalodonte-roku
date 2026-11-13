@@ -1,12 +1,17 @@
-# Megalodonte Roku
+<p align="center">
+  <img src="docs/images/megalodonte-logo.png" width="180" alt="Megalodonte logo">
+</p>
 
-![Ícone de Megalodonte Roku](src/main/resources/megalodonte/roku/icon.png)
+# Megalodonte Roku
 
 Build-time Java API for native Roku SceneGraph applications. A `RokuScreen`
 supplies one or more `RokuScene` pages; when invoked by an application build,
 `RokuExporter` evaluates that screen and writes a sideload ZIP containing a
 Roku manifest, SceneGraph XML, BrightScript entry point, and icon. **Java does
 not run on the Roku TV.**
+
+Applications may provide `src/main/resources/icon.png`; otherwise the exporter
+uses the official Megalodonte logo bundled with this library.
 
 The API supports named pages, text labels, packaged PNG/JPEG images, remote-control buttons,
 route history, and a counter that updates its label at runtime. It is a

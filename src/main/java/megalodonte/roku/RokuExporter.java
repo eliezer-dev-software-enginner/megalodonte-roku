@@ -127,7 +127,10 @@ public final class RokuExporter {
                 """.getBytes(StandardCharsets.UTF_8));
         files.put("components/MainScene.xml", sceneXml(pages, imageUris, theme, extensionPage).getBytes(StandardCharsets.UTF_8));
         files.put("components/MainScene.brs", sceneScript(pages, routes, theme, extensionPage).getBytes(StandardCharsets.UTF_8));
-        try (var icon = RokuExporter.class.getResourceAsStream("/megalodonte/roku/icon.png")) {
+        var applicationLoader = Thread.currentThread().getContextClassLoader();
+        var applicationIcon = applicationLoader == null ? null : applicationLoader.getResourceAsStream("icon.png");
+        try (var icon = applicationIcon != null ? applicationIcon
+                : RokuExporter.class.getResourceAsStream("/megalodonte/roku/icon.png")) {
             if (icon == null) throw new IOException("Missing Roku icon resource");
             files.put("images/icon.png", icon.readAllBytes());
         }

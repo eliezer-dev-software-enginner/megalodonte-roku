@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
@@ -41,6 +42,25 @@ final class RokuExporterTest {
             String script = new String(archive.getInputStream(archive.getEntry("components/MainScene.brs")).readAllBytes());
             assertTrue(script.contains("m.history.Push(m.pageIndex)"));
             assertTrue(script.contains("m.counterValues[m.pageIndex] = m.counterValues[m.pageIndex] + 1"));
+        }
+    }
+
+    @Test void usesApplicationOwnedIconWhenPresent() throws Exception {
+        byte[] applicationIcon = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==");
+        Path resources = Files.createDirectories(temporary.resolve("application-resources"));
+        Files.write(resources.resolve("icon.png"), applicationIcon);
+        Path zip = temporary.resolve("application-icon.zip");
+        ClassLoader previous = Thread.currentThread().getContextClassLoader();
+        try (var applicationLoader = new URLClassLoader(new java.net.URL[]{resources.toUri().toURL()}, previous)) {
+            Thread.currentThread().setContextClassLoader(applicationLoader);
+            RokuExporter.export(new RokuScene("home", "Home", "Welcome"), "Application icon", zip);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previous);
+        }
+        try (ZipFile archive = new ZipFile(zip.toFile())) {
+            assertArrayEquals(applicationIcon,
+                    archive.getInputStream(archive.getEntry("images/icon.png")).readAllBytes());
         }
     }
 
